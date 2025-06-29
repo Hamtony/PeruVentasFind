@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    volumes:
+      - ./data:/data/db
+    ports:
+      - "27017:27017"
+
+  main_node:
+    build: .
+    container_name: main_node
+    depends_on:
+      - mongo
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+    command: ["./main_node"]
+
+  worker_node_1:
+    build: .
+    container_name: worker_node_1
+    depends_on:
+      - main_node
+    environment:
+      - MAIN_ADDR=main_node:8000
+    command: ["./worker_node"]
+
+  worker_node_2:
+    build: .
+    container_name: worker_node_2
+    depends_on:
+      - main_node
+    environment:
+      - MAIN_ADDR=main_node:8000
+    command: ["./worker_node"]
