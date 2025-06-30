@@ -37,6 +37,12 @@ type Registro struct {
 	Timestamp time.Time  `bson:"timestamp"`
 }
 
+var workerAddrs = []string{
+	"worker_node_1:9001",
+	"worker_node_2:9002",
+}
+
+
 var (
 	mu                sync.Mutex
 	resultadosGlobales []Resultado
@@ -75,6 +81,36 @@ func main() {
 	fmt.Println("API REST escuchando en :8080")
 	http.ListenAndServe(":8080", nil)
 }
+
+func consultarEnWorker(producto string) ([]Resultado, error) {
+	consulta := Consulta{Producto: producto}
+	data, _ := json.Marshal(consulta)
+
+	for _, addr := range workerAddrs {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			log.Printf("No se pudo conectar con %s: %v", addr, err)
+			continue
+		}
+		defer conn.Close()
+
+		_, err = conn.Write(data)
+		if err != nil {
+			log.Printf("Error al enviar datos a %s: %v", addr, err)
+			continue
+		}
+		conn.Write([]byte("\n"))
+
+		response, _ := bufio.NewReader(conn).ReadBytes('\n')
+		var resultados []Resultado
+		if err := json.Unmarshal(response, &resultados); err != nil {
+			return nil, fmt.Errorf("error al parsear respuesta del worker: %w", err)
+		}
+		return resultados, nil
+	}
+	return nil, fmt.Errorf("ningún worker disponible")
+}
+
 
 func entrenarModeloPeriodicamente() {
 	for {
@@ -182,28 +218,17 @@ func manejarConexion(conn net.Conn) {
 }
 
 func procesarConsulta(producto string) []Resultado {
-	productoKey := strings.ToLower(producto)
-
-	// Buscar en cache Redis
-	cached, err := rdb.Get(ctx, productoKey).Result()
-	if err == nil {
-		var res []Resultado
-		err := json.Unmarshal([]byte(cached), &res)
-		if err == nil && len(res) > 0 {
-			fmt.Println("Resultado recuperado del modelo en Redis")
-			return res
-		}
+	resultados, err := consultarEnWorker(producto)
+	if err == nil && len(resultados) > 0 {
+		return resultados
 	}
 
-	// Respuesta por defecto
-	res := []Resultado{
-		{"UNIVERSIDAD NACIONAL DE PIURA", 0.91},
-		{"MINISTERIO DE EDUCACIÓN", 0.88},
-		{"GOBIERNO REGIONAL DE LIMA", 0.85},
+	log.Println("Se usa respuesta por defecto")
+	return []Resultado{
+		{"ERROR", 0.00},
 	}
-	fmt.Println("Se usa respuesta por defecto")
-	return res
 }
+
 
 func manejarCSV(w http.ResponseWriter, r *http.Request) {
 	file, err := os.Open("data/ReportePCBienes_cleaned.csv")

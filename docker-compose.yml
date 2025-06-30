@@ -1,45 +1,53 @@
-version: "3.9"
+version: "3.8"
 
 services:
-  mongo:
-    image: mongo:6.0
-    container_name: mongo
-    volumes:
-      - ./data:/data/db
-    ports:
-      - "27017:27017"
-
   main_node:
-    build: .
-    container_name: main_node
+    build:
+      context: .
+      dockerfile: Dockerfile.main
+    ports:
+      - "8080:8080"   # API REST
+      - "8000:8000"   # Comunicación TCP con workers
+    volumes:
+      - ./data:/app/data
     depends_on:
       - mongo
+      - redis
+
+  worker_node_1:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      - main_node
+
+  worker_node_2:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      - main_node
+
+  mongo:
+    image: mongo:6.0
     ports:
-      - "8000:8000"
-      - "8080:8080"
-    environment:
-      - MONGO_URL=mongodb://mongo:27017
-    command: ["./main_node"]
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
 
   redis:
-    image: redis:7
+    image: redis:7.2
     ports:
       - "6379:6379"
 
-  worker_node_1:
-    build: .
-    container_name: worker_node_1
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
     depends_on:
       - main_node
-    environment:
-      - MAIN_ADDR=main_node:8000
-    command: ["./worker_node"]
 
-  worker_node_2:
-    build: .
-    container_name: worker_node_2
-    depends_on:
-      - main_node
-    environment:
-      - MAIN_ADDR=main_node:8000
-    command: ["./worker_node"]
+volumes:
+  mongo_data:
