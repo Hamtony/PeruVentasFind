@@ -40,6 +40,7 @@ type Registro struct {
 var workerAddrs = []string{
 	"worker_node_1:9001",
 	"worker_node_2:9002",
+	"worker_node_3:9003",
 }
 
 

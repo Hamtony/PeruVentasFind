@@ -28,6 +28,13 @@ services:
     depends_on:
       - main_node
 
+  worker_node_3:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      - main_node
+
   mongo:
     image: mongo:6.0
     ports:
