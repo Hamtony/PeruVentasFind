@@ -1,5 +1,26 @@
-body {
+/* src/index.css */
+
+* {
+  box-sizing: border-box;
   margin: 0;
-  font-family: sans-serif;
-  background-color: #f4f4f4;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: #f5f5f5;
+  color: #111827;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* Estilo general para botones si no se usan módulos */
+button {
+  cursor: pointer;
+}
+
+/* Estilo global para inputs si no se usan módulos */
+input {
+  outline: none;
 }

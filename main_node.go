@@ -79,8 +79,9 @@ func main() {
 
 	http.HandleFunc("/api/dataset", manejarCSV)
 	http.HandleFunc("/api/recomendar", manejarRecomendacion)
+	http.HandleFunc("/api/categorias", manejarCategorias)
 	fmt.Println("API REST escuchando en :8080")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":8080", habilitarCORS(http.DefaultServeMux))
 }
 
 func consultarEnWorker(producto string) ([]Resultado, error) {
@@ -283,4 +284,55 @@ func registrarEnMongo(producto string, resultados []Resultado) error {
 		return err
 	}
 	return nil
+}
+
+func habilitarCORS(next http.Handler) http.Handler {
+  return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+    if r.Method == "OPTIONS" {
+      return
+    }
+    next.ServeHTTP(w, r)
+  })
+}
+
+func manejarCategorias(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido, usa GET", http.StatusMethodNotAllowed)
+		return
+	}
+
+	set := make(map[string]bool)
+	f, err := os.Open("data/ReportePCBienes_cleaned.csv")
+	if err != nil {
+		http.Error(w, "No se pudo abrir el CSV", http.StatusInternalServerError)
+		return
+	}
+	defer f.Close()
+
+	rdr := csv.NewReader(f)
+	rdr.FieldsPerRecord = -1
+	_, _ = rdr.Read() // saltar encabezado
+
+	for {
+		rec, err := rdr.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil || len(rec) < 2 {
+			continue
+		}
+		categoria := strings.ToLower(rec[1])
+		set[categoria] = true
+	}
+
+	var categorias []string
+	for c := range set {
+		categorias = append(categorias, c)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(categorias)
 }
