@@ -3,4 +3,5 @@
 __pycache__
 /data
 /raw_data
-*.
+/frontend/node_modules
+/frontend/package-lock.json
